@@ -91,7 +91,7 @@ public class CodeUtils {
 
         if (rawResult != null) {
             if (analyzeCallback != null) {
-                analyzeCallback.onImageAnalyzeSuccess(rawResult.toString(), mBitmap);
+                analyzeCallback.onImageAnalyzeSuccess(rawResult, mBitmap);
             }
         } else {
             if (analyzeCallback != null) {

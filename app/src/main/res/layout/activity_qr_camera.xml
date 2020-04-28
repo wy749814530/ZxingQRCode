@@ -92,8 +92,6 @@
             android:text="@string/qr_pic"
             android:textColor="@color/color_white"
             android:textSize="12sp" />
-
-
     </LinearLayout>
 
     <RelativeLayout

@@ -33,9 +33,9 @@ import com.zxing.view.RuleAlertDialog;
  * Created by Administrator on 2019/10/24 0024.
  */
 
-public class ScanQRcodeActivity extends BaseScanActivity implements ImageAnalyzeLinstener {
+public class ScanQRcodeActivity extends BaseScanActivity implements View.OnClickListener {
     private String TAG = ScanQRcodeActivity.class.getSimpleName();
-    public static final int REQUEST_IMAGE = 112;
+
     SurfaceView previewView;
     ViewfinderView viewfinderView;
     ImageView ivFinder;
@@ -66,7 +66,9 @@ public class ScanQRcodeActivity extends BaseScanActivity implements ImageAnalyze
         ivFlight = findViewById(R.id.iv_flight);
         qrcodePhoto = findViewById(R.id.qrcode_photo);
         Log.i("ScanActivity", "--- onCreate ---");
-
+        scanBack.setOnClickListener(this);
+        ivFlight.setOnClickListener(this);
+        qrcodePhoto.setOnClickListener(this);
         initCameraPerview(previewView, viewfinderView);
         mActivity = this;
     }
@@ -175,20 +177,6 @@ public class ScanQRcodeActivity extends BaseScanActivity implements ImageAnalyze
         analyzeQrcodeData(result);
     }
 
-    @Override
-    public void onImageAnalyzeSuccess(String result, Bitmap barcode) {
-        Log.i("ScanActivity", "--- onImageAnalyzeSuccess ---" + result + " , " + barcode);
-        analyzeQrcodeData(result);
-        playBeepSoundAndVibrate();
-    }
-
-    @Override
-    public void onImageAnalyzeFailed() {
-        Log.i("ScanActivity", "--- onQrAnalyzeFailed ---");
-        playBeepSoundAndVibrate();
-        Toast.makeText(this, getString(R.string.unrecognized_QR), Toast.LENGTH_LONG).show();
-    }
-
     private Handler handler = new Handler();
 
     private void analyzeQrcodeData(String result) {
@@ -216,7 +204,7 @@ public class ScanQRcodeActivity extends BaseScanActivity implements ImageAnalyze
                             public void run() {
                                 restartScanCode();
                             }
-                        }, 2500);
+                        }, 1000);
                     }
                 }
             } else {
@@ -233,35 +221,16 @@ public class ScanQRcodeActivity extends BaseScanActivity implements ImageAnalyze
                     public void run() {
                         restartScanCode();
                     }
-                }, 2500);
-            }
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        /**
-         * 选择系统图片并解析
-         */
-        if (requestCode == REQUEST_IMAGE) {
-            if (data != null) {
-                Uri uri = data.getData();
-                try {
-                    CodeUtils.analyzeBitmap(ImageUtil.getImageAbsolutePath(this, uri), this);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                }, 1000);
             }
         }
     }
 
     public boolean isOpen = false;
-
-    public void onViewClicked(View view) {
+    public void onClick(View view) {
         int i = view.getId();
         if (i == R.id.scan_back) {
             finish();
-
         } else if (i == R.id.iv_flight) {
             if (!isOpen) {
                 CodeUtils.isLightEnable(true);
@@ -272,19 +241,8 @@ public class ScanQRcodeActivity extends BaseScanActivity implements ImageAnalyze
                 isOpen = false;
                 ivFlight.setCompoundDrawablesRelativeWithIntrinsicBounds(0, R.mipmap.add_scan_btn_opne, 0, 0);
             }
-
         } else if (i == R.id.qrcode_photo) {
-            Intent innerIntent = new Intent();
-            if (Build.VERSION.SDK_INT < 19) {
-                innerIntent.setAction(Intent.ACTION_GET_CONTENT);
-            } else {
-                innerIntent.setAction(Intent.ACTION_PICK);
-            }
-            innerIntent.setType("image/*");
-            //  innerIntent.setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*");
-            Intent wrapperIntent = Intent.createChooser(innerIntent, "选择二维码图片");
-            startActivityForResult(wrapperIntent, REQUEST_IMAGE);
-
+            scanLocalPictures();
         }
     }
 
@@ -296,4 +254,5 @@ public class ScanQRcodeActivity extends BaseScanActivity implements ImageAnalyze
         }
         return super.onKeyDown(keyCode, event);
     }
+
 }

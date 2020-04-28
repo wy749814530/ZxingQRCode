@@ -20,13 +20,6 @@ android {
         }
     }
 
-    // library 需要加这个
-    repositories {
-        flatDir {
-            dirs 'libs'
-        }
-    }
-
     compileOptions {
         targetCompatibility 1.8
         sourceCompatibility 1.8
@@ -35,7 +28,6 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-
     implementation 'com.android.support:appcompat-v7:27.1.1'
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'

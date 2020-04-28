@@ -9,7 +9,7 @@ import com.google.zxing.Result;
  */
 
 public interface ImageAnalyzeLinstener {
-    void onImageAnalyzeSuccess(String result, Bitmap barcode);
+    void onImageAnalyzeSuccess(Result result, Bitmap barcode);
 
     void onImageAnalyzeFailed();
 }

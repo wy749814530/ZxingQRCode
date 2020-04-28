@@ -1,11 +1,13 @@
 package com.wyu.zxing.activity;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.hardware.Camera;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Vibrator;
@@ -23,7 +25,9 @@ import com.wyu.zxing.R;
 import com.wyu.zxing.camera.CameraManager;
 import com.wyu.zxing.decoding.CaptureActivityHandler;
 import com.wyu.zxing.decoding.InactivityTimer;
+import com.wyu.zxing.helper.ImageAnalyzeLinstener;
 import com.wyu.zxing.helper.ScanResultLinstener;
+import com.wyu.zxing.utils.ImageUtil;
 import com.wyu.zxing.view.ViewfinderView;
 
 import java.io.IOException;
@@ -35,6 +39,7 @@ import java.util.Vector;
 
 public abstract class BaseScanActivity extends AppCompatActivity implements SurfaceHolder.Callback, ScanResultLinstener {
 
+    private final int REQUEST_IMAGE = 112;
     private CaptureActivityHandler handler;
     private ViewfinderView viewfinderView;
     private boolean hasSurface;
@@ -103,9 +108,7 @@ public abstract class BaseScanActivity extends AppCompatActivity implements Surf
             handler = null;
         }
         CameraManager.get().closeDriver();
-
     }
-
 
     @Override
     protected void onDestroy() {
@@ -211,9 +214,49 @@ public abstract class BaseScanActivity extends AppCompatActivity implements Surf
         }
     }
 
+    protected void scanLocalPictures() {
+        Intent innerIntent = new Intent();
+        if (Build.VERSION.SDK_INT < 19) {
+            innerIntent.setAction(Intent.ACTION_GET_CONTENT);
+        } else {
+            innerIntent.setAction(Intent.ACTION_PICK);
+        }
+        innerIntent.setType("image/*");
+        //  innerIntent.setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*");
+        Intent wrapperIntent = Intent.createChooser(innerIntent, "选择二维码图片");
+        startActivityForResult(wrapperIntent, REQUEST_IMAGE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        /**
+         * 选择系统图片并解析
+         */
+        if (requestCode == REQUEST_IMAGE) {
+            if (data != null) {
+                Uri uri = data.getData();
+                try {
+                    CodeUtils.analyzeBitmap(ImageUtil.getImageAbsolutePath(this, uri), new ImageAnalyzeLinstener() {
+                        @Override
+                        public void onImageAnalyzeSuccess(Result result, Bitmap barcode) {
+                            handleDecode(result, barcode);
+                        }
+
+                        @Override
+                        public void onImageAnalyzeFailed() {
+                            onQrAnalyzeFailed();
+                        }
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+
     private static final long VIBRATE_DURATION = 200L;
 
-    @SuppressLint("MissingPermission")
     public void playBeepSoundAndVibrate() {
         if (playBeep && mediaPlayer != null) {
             mediaPlayer.start();
