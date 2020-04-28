@@ -29,5 +29,6 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
-    compile project(path: ':basescan')
+    implementation project(path: ':basescan')
+    //implementation 'com.github.wy749814530:ZxingQRCode:3.0.1'
 }
