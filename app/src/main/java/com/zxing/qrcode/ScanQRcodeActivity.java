@@ -30,10 +30,11 @@ public class ScanQRcodeActivity extends BaseScanActivity implements ScanQRcodeLi
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        setTitle("AAAA");
-        setMenuText("KKKK");
+        //设置标题
+        setTitle("二维码识别");
+        //不显示右侧菜单
         setMenuVisibility(false);
+        // 设置扫码结果回调
         setScanQRcodeLinstener(this);
     }
 
