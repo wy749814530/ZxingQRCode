@@ -26,7 +26,7 @@ import com.google.zxing.BarcodeFormat;
 import com.google.zxing.Result;
 import com.wyu.zxing.R;
 import com.wyu.zxing.camera.CameraManager;
-import com.wyu.zxing.helper.ScanResultLinstener;
+import com.wyu.zxing.linstener.ScanResultLinstener;
 import com.wyu.zxing.view.ViewfinderResultPointCallback;
 import com.wyu.zxing.view.ViewfinderView;
 

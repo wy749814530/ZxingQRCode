@@ -1,7 +1,9 @@
 package com.wyu.zxing.activity;
 
-import android.annotation.SuppressLint;
+import android.Manifest;
+import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.hardware.Camera;
@@ -10,14 +12,21 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Vibrator;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.Result;
@@ -25,8 +34,10 @@ import com.wyu.zxing.R;
 import com.wyu.zxing.camera.CameraManager;
 import com.wyu.zxing.decoding.CaptureActivityHandler;
 import com.wyu.zxing.decoding.InactivityTimer;
-import com.wyu.zxing.helper.ImageAnalyzeLinstener;
-import com.wyu.zxing.helper.ScanResultLinstener;
+import com.wyu.zxing.enumc.ScanFrequency;
+import com.wyu.zxing.linstener.ImageAnalyzeLinstener;
+import com.wyu.zxing.linstener.ScanQRcodeLinstener;
+import com.wyu.zxing.linstener.ScanResultLinstener;
 import com.wyu.zxing.utils.ImageUtil;
 import com.wyu.zxing.view.ViewfinderView;
 
@@ -37,42 +48,67 @@ import java.util.Vector;
  * Created by Administrator on 2019/10/24 0024.
  */
 
-public abstract class BaseScanActivity extends AppCompatActivity implements SurfaceHolder.Callback, ScanResultLinstener {
-
+public class BaseScanActivity extends AppCompatActivity implements SurfaceHolder.Callback, ScanResultLinstener, View.OnClickListener {
+    private ScanQRcodeLinstener mLinstener;
     private final int REQUEST_IMAGE = 112;
     private CaptureActivityHandler handler;
-    private ViewfinderView viewfinderView;
     private boolean hasSurface;
     private Vector<BarcodeFormat> decodeFormats;
     private String characterSet;
     private InactivityTimer inactivityTimer;
-    private MediaPlayer mediaPlayer;
-    private boolean playBeep;
-    private static final float BEEP_VOLUME = 0.10f;
-    private boolean vibrate;
-    private SurfaceView surfaceView;
     private SurfaceHolder surfaceHolder;
     private Camera camera;
     private boolean cameraIsShow = false;
+    private SurfaceView previewView;
+    private ViewfinderView viewfinderView;
+    private ImageView ivFinder;
+    private ImageView ivBack;
+    private ImageView ivFlashlight;
+    private ImageView ivPhotoAlbum;
+    private TextView tvTitle;
+    private TextView tvRight;
+    private TextView tvDescription;
+    private ScanFrequency mSpeed = ScanFrequency.MEDIUM_SPEED;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);// 设置为无标题格式
+        setContentView(R.layout.activity_base_scan);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
         }
-        requestWindowFeature(Window.FEATURE_NO_TITLE);// 设置为无标题格式
+
         Log.i("BaseScanActivity", "--- onCreate ---");
+
+        initView();
         ZXingLibrary.initDisplayOpinion(this);
         CameraManager.init(this);
         hasSurface = false;
         inactivityTimer = new InactivityTimer(this);
     }
 
-    public void initCameraPerview(SurfaceView view, ViewfinderView finderView) {
-        surfaceView = view;
-        viewfinderView = finderView;
-        surfaceHolder = surfaceView.getHolder();
+    private void initView() {
+
+        tvTitle = findViewById(R.id.tv_title);
+        tvRight = findViewById(R.id.tv_right);
+        tvDescription = findViewById(R.id.tv_description);
+
+        previewView = findViewById(R.id.preview_view);
+        viewfinderView = findViewById(R.id.viewfinder_view);
+        ivFinder = findViewById(R.id.iv_finder);
+        ivBack = findViewById(R.id.iv_back);
+        ivFlashlight = findViewById(R.id.iv_flashlight);
+        ivPhotoAlbum = findViewById(R.id.iv_photo_album);
+        Log.i("ScanActivity", "--- onCreate ---");
+
+        surfaceHolder = previewView.getHolder();
+
+
+        ivBack.setOnClickListener(this);
+        ivFlashlight.setOnClickListener(this);
+        ivPhotoAlbum.setOnClickListener(this);
+        tvRight.setOnClickListener(this);
     }
 
     @Override
@@ -89,13 +125,6 @@ public abstract class BaseScanActivity extends AppCompatActivity implements Surf
         decodeFormats = null;
         characterSet = null;
         cameraIsShow = true;
-        playBeep = true;
-        AudioManager audioService = (AudioManager) getSystemService(AUDIO_SERVICE);
-        if (audioService.getRingerMode() != AudioManager.RINGER_MODE_NORMAL) {
-            playBeep = false;
-        }
-        initBeepSound();
-        vibrate = true;
     }
 
     @Override
@@ -114,8 +143,8 @@ public abstract class BaseScanActivity extends AppCompatActivity implements Surf
     protected void onDestroy() {
         super.onDestroy();
         Log.i("BaseScanActivity", "--- onDestroy ---");
-
         inactivityTimer.shutdown();
+        mLinstener = null;
     }
 
     public void drawViewfinder() {
@@ -134,22 +163,27 @@ public abstract class BaseScanActivity extends AppCompatActivity implements Surf
         playBeepSoundAndVibrate();
 
         if (result == null || TextUtils.isEmpty(result.getText())) {
-            onQrAnalyzeFailed();
+            if (mLinstener != null) {
+                mLinstener.onQrAnalyzeFailed();
+            }
         } else {
-            onQrAnalyzeSuccess(result.toString(), barcode);
+            if (mLinstener != null) {
+                mLinstener.onQrAnalyzeSuccess(result.getText(), barcode);
+            }
         }
-    }
 
-    // 重启开启扫码
-    public void restartScanCode() {
-        if (cameraIsShow) {
-            if (handler != null) {
-                handler.quitSynchronously();
-                handler = null;
+        if (handler != null) {
+            int speed = 1000;
+            if (mSpeed == ScanFrequency.HIGHT_SPEED) {
+                speed = 1000;
+            } else if (mSpeed == ScanFrequency.MEDIUM_SPEED) {
+                speed = 2000;
+            } else if (mSpeed == ScanFrequency.LOW_SPEED) {
+                speed = 2500;
             }
-            if (surfaceHolder != null) {
-                initCamera(surfaceHolder);
-            }
+            handler.postDelayed(() -> {
+                restartScanCode();
+            }, speed);
         }
     }
 
@@ -158,10 +192,9 @@ public abstract class BaseScanActivity extends AppCompatActivity implements Surf
             CameraManager.get().openDriver(surfaceHolder);
             camera = CameraManager.get().getCamera();
         } catch (Exception e) {
-            onInitCameraFailed(e);
+            e.printStackTrace();
             return;
         }
-        onInitCameraSuccess();
         if (handler == null) {
             handler = new CaptureActivityHandler(this, decodeFormats, characterSet, viewfinderView);
         }
@@ -195,25 +228,6 @@ public abstract class BaseScanActivity extends AppCompatActivity implements Surf
         }
     }
 
-    private void initBeepSound() {
-        if (playBeep && mediaPlayer == null) {
-            setVolumeControlStream(AudioManager.STREAM_MUSIC);
-            mediaPlayer = new MediaPlayer();
-            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-            mediaPlayer.setOnCompletionListener(beepListener);
-
-            AssetFileDescriptor file = getResources().openRawResourceFd(R.raw.beep);
-            try {
-                mediaPlayer.setDataSource(file.getFileDescriptor(), file.getStartOffset(), file.getLength());
-                file.close();
-                mediaPlayer.setVolume(BEEP_VOLUME, BEEP_VOLUME);
-                mediaPlayer.prepare();
-            } catch (IOException e) {
-                mediaPlayer = null;
-            }
-        }
-    }
-
     protected void scanLocalPictures() {
         Intent innerIntent = new Intent();
         if (Build.VERSION.SDK_INT < 19) {
@@ -222,7 +236,6 @@ public abstract class BaseScanActivity extends AppCompatActivity implements Surf
             innerIntent.setAction(Intent.ACTION_PICK);
         }
         innerIntent.setType("image/*");
-        //  innerIntent.setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*");
         Intent wrapperIntent = Intent.createChooser(innerIntent, "选择二维码图片");
         startActivityForResult(wrapperIntent, REQUEST_IMAGE);
     }
@@ -244,7 +257,9 @@ public abstract class BaseScanActivity extends AppCompatActivity implements Surf
 
                         @Override
                         public void onImageAnalyzeFailed() {
-                            onQrAnalyzeFailed();
+                            if (mLinstener != null) {
+                                mLinstener.onQrAnalyzeFailed();
+                            }
                         }
                     });
                 } catch (Exception e) {
@@ -254,30 +269,112 @@ public abstract class BaseScanActivity extends AppCompatActivity implements Surf
         }
     }
 
+    //震动
+    private void playBeepSoundAndVibrate() {
+        Vibrator vib = (Vibrator) getSystemService(Service.VIBRATOR_SERVICE);
+        vib.vibrate(200);
+    }
 
-    private static final long VIBRATE_DURATION = 200L;
+    /**
+     * 设置title
+     *
+     * @param title
+     */
+    public void setTitle(String title) {
+        tvTitle.setText(title);
+    }
 
-    public void playBeepSoundAndVibrate() {
-        if (playBeep && mediaPlayer != null) {
-            mediaPlayer.start();
-        }
-        if (vibrate) {
-            Vibrator vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
-            vibrator.vibrate(VIBRATE_DURATION);
+    /**
+     * 设置是否显示右侧菜单栏
+     *
+     * @param visibility
+     */
+    public void setMenuVisibility(boolean visibility) {
+        tvRight.setVisibility(visibility ? View.VISIBLE : View.GONE);
+    }
+
+    /**
+     * 设置右侧Menu
+     *
+     * @param text
+     */
+    public void setMenuText(String text) {
+        tvRight.setText(text);
+    }
+
+    /**
+     * 设置右侧menu图片
+     *
+     * @param imageRes
+     */
+    public void setMenuImage(int imageRes) {
+        tvRight.setCompoundDrawablesWithIntrinsicBounds(0, 0, imageRes, 0);
+    }
+
+    /**
+     * 设置底部描述
+     *
+     * @param text
+     */
+    public void setDescriptionText(String text) {
+        tvDescription.setText(text);
+    }
+
+    /**
+     * 重启开启扫码
+     */
+    public void restartScanCode() {
+        if (cameraIsShow) {
+            if (handler != null) {
+                handler.quitSynchronously();
+                handler = null;
+            }
+            if (surfaceHolder != null) {
+                initCamera(surfaceHolder);
+            }
         }
     }
 
-    private final MediaPlayer.OnCompletionListener beepListener = new MediaPlayer.OnCompletionListener() {
-        public void onCompletion(MediaPlayer mediaPlayer) {
-            mediaPlayer.seekTo(0);
+    /**
+     * 设置扫码监听
+     *
+     * @param linstener
+     */
+    public void setScanQRcodeLinstener(ScanQRcodeLinstener linstener) {
+        mLinstener = linstener;
+    }
+
+    /**
+     * 设置扫码频率
+     *
+     * @param speed
+     */
+    public void setScanFrequency(ScanFrequency speed) {
+        mSpeed = speed;
+    }
+
+    public boolean isOpen = false;
+
+    public void onClick(View view) {
+        int i = view.getId();
+        if (i == R.id.iv_back) {
+            finish();
+        } else if (i == R.id.iv_flashlight) {
+            if (!isOpen) {
+                CodeUtils.isLightEnable(true);
+                isOpen = true;
+                ivFlashlight.setImageResource(R.mipmap.add_scan_btn_colse);
+            } else {
+                CodeUtils.isLightEnable(false);
+                isOpen = false;
+                ivFlashlight.setImageResource(R.mipmap.add_scan_btn_opne);
+            }
+        } else if (i == R.id.iv_photo_album) {
+            scanLocalPictures();
+        } else if (i == R.id.tv_right) {
+            if (mLinstener != null) {
+                mLinstener.onClickMenuItem();
+            }
         }
-    };
-
-    public abstract void onInitCameraSuccess();
-
-    public abstract void onInitCameraFailed(Exception e);
-
-    public abstract void onQrAnalyzeFailed();
-
-    public abstract void onQrAnalyzeSuccess(String result, Bitmap barcode);
+    }
 }

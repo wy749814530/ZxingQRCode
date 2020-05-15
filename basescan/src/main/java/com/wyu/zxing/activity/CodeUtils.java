@@ -20,7 +20,7 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import com.wyu.zxing.camera.BitmapLuminanceSource;
 import com.wyu.zxing.camera.CameraManager;
 import com.wyu.zxing.decoding.DecodeFormatManager;
-import com.wyu.zxing.helper.ImageAnalyzeLinstener;
+import com.wyu.zxing.linstener.ImageAnalyzeLinstener;
 
 import java.util.Hashtable;
 import java.util.Vector;

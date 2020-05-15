@@ -1,4 +1,4 @@
-package com.wyu.zxing.helper;
+package com.wyu.zxing.linstener;
 
 import android.graphics.Bitmap;
 

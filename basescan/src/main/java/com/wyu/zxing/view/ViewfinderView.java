@@ -26,6 +26,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
+import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.view.View;
 
@@ -36,6 +37,7 @@ import com.wyu.zxing.camera.CameraManager;
 
 import java.util.Collection;
 import java.util.HashSet;
+
 /**
  * 自定义组件实现,扫描功能
  */
@@ -44,35 +46,34 @@ public final class ViewfinderView extends View {
     private static final long ANIMATION_DELAY = 100L;
     private static final int OPAQUE = 0xFF;
 
-    private final Paint paint;
+    private Paint paint;
     private Bitmap resultBitmap;
-    private final int maskColor;
-    private final int resultColor;
-    private final int resultPointColor;
+    private int maskColor;
+    private int resultColor;
+    private int resultPointColor;
     private Collection<ResultPoint> possibleResultPoints;
     private Collection<ResultPoint> lastPossibleResultPoints;
 
     public ViewfinderView(Context context) {
-        this(context, null);
+        super(context);
+        initView();
     }
 
-    public ViewfinderView(Context context, AttributeSet attrs) {
-        this(context, attrs, -1);
 
+    public ViewfinderView(Context context, @Nullable AttributeSet attrs) {
+        super(context, attrs);
+        initView();
+        initInnerRect(context, attrs);
     }
 
-    public ViewfinderView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
+    private void initView() {
         paint = new Paint();
         Resources resources = getResources();
         maskColor = resources.getColor(R.color.viewfinder_mask);
         resultColor = resources.getColor(R.color.result_view);
         resultPointColor = resources.getColor(R.color.color_white);
         possibleResultPoints = new HashSet<>(5);
-
         scanLight = BitmapFactory.decodeResource(resources, R.drawable.scan_light);
-
-        initInnerRect(context, attrs);
     }
 
     /**
@@ -104,9 +105,9 @@ public final class ViewfinderView extends View {
         innercornerwidth = (int) ta.getDimension(R.styleable.ViewfinderView_inner_corner_width, 7);
 
         // 扫描bitmap
-        Drawable drawable = ta.getDrawable(R.styleable.ViewfinderView_inner_scan_bitmap);
-        if (drawable != null) {
-        }
+//        Drawable drawable = ta.getDrawable(R.styleable.ViewfinderView_inner_scan_bitmap);
+//        if (drawable != null) {
+//        }
 
         // 扫描控件
         scanLight = BitmapFactory.decodeResource(getResources(), ta.getResourceId(R.styleable.ViewfinderView_inner_scan_bitmap, R.drawable.scan_light));
