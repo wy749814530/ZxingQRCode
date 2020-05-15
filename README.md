@@ -53,3 +53,12 @@ public class ScanQRcodeActivity extends BaseScanActivity implements ScanQRcodeLi
     }
 }
 ```
+#Required permissions
+```java
+    <!--摄像机权限-->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!--手机震动权限-->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!--读取本地图片权限-->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+```
